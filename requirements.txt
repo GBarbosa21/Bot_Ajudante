@@ -1,4 +1,5 @@
 discord.py
 gspread
 google-auth
-Flask
+fastapi
+uvicorn

@@ -11,7 +11,6 @@ import re
 from fastapi import FastAPI, Request, HTTPException
 
 # --- CONFIGURAÇÃO INICIAL (Gspread e Intents) ---
-# ... (sua configuração de conexão com a planilha continua a mesma) ...
 google_credentials_str = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 spreadsheet = None
 worksheet = None
@@ -40,7 +39,6 @@ TARGET_CHANNEL_ID = int(os.environ.get("DISCORD_CHANNEL_ID"))
 app = FastAPI(docs_url=None, redoc_url=None)
 
 # --- LÓGICA DO SERVIDOR WEB (FASTAPI) ---
-
 @app.api_route("/", methods=["GET", "HEAD"])
 def health_check():
     return {"status": "Bot is alive and listening!"}
@@ -95,32 +93,36 @@ async def on_reaction_add(reaction, user):
             await message.edit(content=novo_conteudo)
             print(f"Mensagem {message.id} editada para adicionar '(impresso)'")
 
-# --- Seus Comandos de Barra ---
+# --- Comandos de Barra ---
 @bot.tree.command(name="ajuda", description="Mostra uma lista de todos os comandos disponíveis.")
-# ... (código do /ajuda) ...
+async def ajuda(interaction: discord.Interaction):
+    embed = discord.Embed(title="Ajuda do Bot", description="Aqui está uma lista de todos os comandos que eu entendo:", color=discord.Color.blue())
+    for command in bot.tree.get_commands():
+        embed.add_field(name=f"/{command.name}", value=command.description, inline=False)
+    embed.set_footer(text="Use os comandos em um canal ou na minha mensagem direta.")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="verificar", description="Verifica orçamentos com status pendentes na planilha.")
-# ... (código do /verificar) ...
+# ... (outros comandos de barra como /verificar, /lembrete, /ponto)
 
-@bot.tree.command(name="lembrete", description="Agenda um lembrete para você.")
-# ... (código do /lembrete) ...
-
-@bot.tree.command(name="ponto", description="Agenda um lembrete de 1 hora para bater o ponto.")
-# ... (código do /ponto) ...
-
-# --- Seus Comandos de Prefixo ---
+# --- Comandos de Prefixo (TODOS PRECISAM SER 'async def') ---
 @bot.command()
 async def ping(ctx):
     await ctx.send('Pong!')
 
 @bot.command()
-async def mengao(ctx):
+async def mengao(ctx): # <-- CORRIGIDO
     await ctx.send('O mengão ganhou, hoje é no amor!')
 
 @bot.command()
-async def ler(ctx, celula: str):
-    # ... (código do !ler) ...
-    pass
+async def ler(ctx, celula: str): # <-- CORRIGIDO
+    if not spreadsheet:
+        await ctx.send("Desculpe, a conexão com a planilha não foi estabelecida.")
+        return
+    try:
+        valor = worksheet.acell(celula.upper()).value
+        await ctx.send(f'O valor da célula {celula.upper()} é: **{valor}**')
+    except Exception as e:
+        await ctx.send(f"Ocorreu um erro: {e}")
 
 # --- INICIALIZAÇÃO DO BOT E DO SERVIDOR ---
 @app.on_event("startup")

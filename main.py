@@ -24,7 +24,7 @@ if google_credentials_str:
     except Exception as e:
         print(f"ERRO CRÍTICO ao conectar à planilha: {e}")
 else:
-    print("AVISO: Secret 'GOOGLE_CREDENTIALS_JSON' não encontrado.")
+    print("AVISO: Secret 'GOOGLE_CREDENTIALS_JSON' não encontrado. Funções da planilha desativadas.")
 
 # --- BOT, FASTAPI E CONFIGURAÇÕES DE SEGURANÇA ---
 intents = discord.Intents.default()
@@ -39,12 +39,15 @@ TARGET_CHANNEL_ID = int(os.environ.get("DISCORD_CHANNEL_ID"))
 app = FastAPI(docs_url=None, redoc_url=None)
 
 # --- LÓGICA DO SERVIDOR WEB (FASTAPI) ---
+
 @app.api_route("/", methods=["GET", "HEAD"])
 def health_check():
+    """Rota de Health Check para o Render."""
     return {"status": "Bot is alive and listening!"}
 
 @app.post("/notify")
 async def handle_notification(request: Request):
+    """Recebe a notificação do Google Apps Script."""
     if request.headers.get('Authorization') != SECRET_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
     try:
@@ -60,6 +63,7 @@ async def handle_notification(request: Request):
             return {"status": "Notification sent!"}
         else:
             raise HTTPException(status_code=500, detail="Discord channel not found")
+            
     except Exception as e:
         print(f"Erro ao processar notificação: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -75,7 +79,7 @@ def parse_time(time_str: str) -> int:
     if unit == 'h': return value * 3600
     return None
 
-# --- EVENTOS E COMANDOS DO DISCORD ---
+# --- EVENTOS DO DISCORD ---
 
 @bot.event
 async def on_ready():
@@ -93,7 +97,8 @@ async def on_reaction_add(reaction, user):
             await message.edit(content=novo_conteudo)
             print(f"Mensagem {message.id} editada para adicionar '(impresso)'")
 
-# --- Comandos de Barra ---
+# --- COMANDOS DE BARRA (SLASH COMMANDS) ---
+
 @bot.tree.command(name="ajuda", description="Mostra uma lista de todos os comandos disponíveis.")
 async def ajuda(interaction: discord.Interaction):
     embed = discord.Embed(title="Ajuda do Bot", description="Aqui está uma lista de todos os comandos que eu entendo:", color=discord.Color.blue())
@@ -102,19 +107,81 @@ async def ajuda(interaction: discord.Interaction):
     embed.set_footer(text="Use os comandos em um canal ou na minha mensagem direta.")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# ... (outros comandos de barra como /verificar, /lembrete, /ponto)
+@bot.tree.command(name="verificar", description="Verifica orçamentos com status pendentes na planilha.")
+@app_commands.describe(efemero="Escolha 'Falso' para mostrar a resposta para todos no canal.")
+async def verificar(interaction: discord.Interaction, efemero: bool = True):
+    if not spreadsheet:
+        await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=efemero)
+        return
+    try:
+        await interaction.response.defer(ephemeral=efemero)
+        status_para_procurar = ["16 Cart Tradução", "17 Cart Original", "Embalar", "05 Imprimir"]
+        todos_os_dados = worksheet.get_all_values()
+        orcamentos_encontrados = {}
+        for linha in todos_os_dados[1:]:
+            try:
+                status_da_linha = linha[7]
+                id_orcamento = linha[3]
+                nome_cliente = linha[2]
+            except IndexError:
+                continue
+            if status_da_linha in status_para_procurar:
+                if status_da_linha not in orcamentos_encontrados:
+                    orcamentos_encontrados[status_da_linha] = []
+                if id_orcamento and nome_cliente:
+                    linha_formatada = f"{id_orcamento} - {nome_cliente}"
+                    orcamentos_encontrados[status_da_linha].append(linha_formatada)
+        if not orcamentos_encontrados:
+            await interaction.followup.send("Nenhum orçamento encontrado com os status de verificação.", ephemeral=efemero)
+            return
+        resposta_texto = "📋 **Orçamentos Pendentes Encontrados:**\n\n"
+        for status, orcamentos in orcamentos_encontrados.items():
+            if orcamentos:
+                resposta_texto += f"**{status}**\n"
+                lista_de_orcamentos = "\n".join(orcamentos)
+                resposta_texto += f"```{lista_de_orcamentos}```\n"
+        if len(resposta_texto) > 2000:
+            resposta_texto = resposta_texto[:1990] + "\n...(lista muito longa, foi cortada)"
+        await interaction.followup.send(resposta_texto, ephemeral=efemero)
+    except Exception as e:
+        await interaction.followup.send(f"Ocorreu um erro ao verificar a planilha: {e}", ephemeral=efemero)
 
-# --- Comandos de Prefixo (TODOS PRECISAM SER 'async def') ---
+@bot.tree.command(name="lembrete", description="Agenda um lembrete para você.")
+@app_commands.describe(tempo="O tempo até o lembrete (ex: 10s, 5m, 1h).", mensagem="A mensagem que você quer receber.")
+async def lembrete(interaction: discord.Interaction, tempo: str, mensagem: str):
+    segundos = parse_time(tempo)
+    if segundos is None:
+        await interaction.response.send_message(f"Formato de tempo inválido: '{tempo}'. Use 's', 'm', ou 'h'.", ephemeral=True)
+        return
+    await interaction.response.send_message(f"Ok! Lembrete agendado para daqui a **{tempo}**.", ephemeral=True)
+    await asyncio.sleep(segundos)
+    try:
+        await interaction.user.send(f"⏰ **Lembrete:** {mensagem}")
+    except discord.Forbidden:
+        await interaction.followup.send(f"⏰ {interaction.user.mention}, seu lembrete: {mensagem}", ephemeral=False)
+
+@bot.tree.command(name="ponto", description="Agenda um lembrete de 1 hora para bater o ponto.")
+async def ponto(interaction: discord.Interaction):
+    segundos = 3600
+    mensagem = "Lembre de bater o ponto"
+    await interaction.response.send_message("Ok! Agendei seu lembrete para bater o ponto daqui a **1 hora**.", ephemeral=True)
+    await asyncio.sleep(segundos)
+    try:
+        await interaction.user.send(f"⏰ **Lembrete:** {mensagem}")
+    except discord.Forbidden:
+        await interaction.followup.send(f"⏰ {interaction.user.mention}, seu lembrete: {mensagem}", ephemeral=False)
+
+# --- COMANDOS DE PREFIXO ---
 @bot.command()
 async def ping(ctx):
     await ctx.send('Pong!')
 
 @bot.command()
-async def mengao(ctx): # <-- CORRIGIDO
+async def mengao(ctx):
     await ctx.send('O mengão ganhou, hoje é no amor!')
 
 @bot.command()
-async def ler(ctx, celula: str): # <-- CORRIGIDO
+async def ler(ctx, celula: str):
     if not spreadsheet:
         await ctx.send("Desculpe, a conexão com a planilha não foi estabelecida.")
         return
@@ -127,5 +194,6 @@ async def ler(ctx, celula: str): # <-- CORRIGIDO
 # --- INICIALIZAÇÃO DO BOT E DO SERVIDOR ---
 @app.on_event("startup")
 async def startup_event():
+    """Inicia o bot do Discord como uma tarefa de fundo."""
     asyncio.create_task(bot.start(TOKEN))
     print("Tarefa de inicialização do bot do Discord criada.")

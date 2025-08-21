@@ -8,10 +8,8 @@ import asyncio
 
 # --- NOVAS BIBLIOTECAS PARA O SERVIDOR WEB ---
 from fastapi import FastAPI, Request, HTTPException
-import uvicorn
 
 # --- CONFIGURAÇÃO INICIAL (Gspread e Intents) ---
-# Esta parte continua a mesma
 google_credentials_str = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 spreadsheet = None
 worksheet = None
@@ -27,7 +25,7 @@ if google_credentials_str:
 else:
     print("AVISO: Secret 'GOOGLE_CREDENTIALS_JSON' não encontrado.")
 
-# --- BOT, FASTAPI E CONFIGURAÇÕES DE SEGURANÇA ---
+# --- BOT, FASTAPI E CONFIGURAções DE SEGURANÇA ---
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -36,15 +34,17 @@ TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 SECRET_KEY = os.environ.get("NOTIFY_SECRET_KEY")
 TARGET_CHANNEL_ID = int(os.environ.get("DISCORD_CHANNEL_ID"))
 
-# Cria a aplicação web FastAPI
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None) # Desativa a documentação automática
 
 # --- LÓGICA DO SERVIDOR WEB (FASTAPI) ---
 
-@app.get("/")
+# --- INÍCIO DA CORREÇÃO ---
+# Em vez de @app.get, usamos @app.api_route para aceitar tanto GET quanto HEAD.
+@app.api_route("/", methods=["GET", "HEAD"])
 def health_check():
     """Rota de Health Check para o Render."""
     return {"status": "Bot is alive and listening!"}
+# --- FIM DA CORREÇÃO ---
 
 @app.post("/notify")
 async def handle_notification(request: Request):
@@ -59,7 +59,6 @@ async def handle_notification(request: Request):
         if not mensagem:
             raise HTTPException(status_code=400, detail="Bad Request: 'message' not found")
         
-        # Envia a mensagem para o Discord
         channel = await bot.fetch_channel(TARGET_CHANNEL_ID)
         if channel:
             await channel.send(mensagem)
@@ -72,19 +71,15 @@ async def handle_notification(request: Request):
         print(f"Erro ao processar notificação: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# --- EVENTOS E COMANDOS DO DISCORD (Continuam os mesmos) ---
-
+# --- EVENTOS E COMANDOS DO DISCORD ---
+# ... (Todos os seus comandos /verificar, /ajuda, etc. continuam aqui) ...
 @bot.event
 async def on_ready():
     print(f'Bot conectado como {bot.user}')
     await bot.tree.sync()
     print('---------------------------')
 
-# ... (Todos os seus comandos /verificar, /ajuda, /ponto, !ping, !ler, etc. continuam aqui, sem alterações) ...
-
-
 # --- INICIALIZAÇÃO DO BOT E DO SERVIDOR ---
-
 @app.on_event("startup")
 async def startup_event():
     """Inicia o bot do Discord como uma tarefa de fundo."""

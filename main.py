@@ -5,11 +5,13 @@ import os
 import gspread
 import json
 import asyncio
+import re
 
-# --- NOVAS BIBLIOTECAS PARA O SERVIDOR WEB ---
+# --- BIBLIOTECAS PARA O SERVIDOR WEB DE PRODUÇÃO ---
 from fastapi import FastAPI, Request, HTTPException
 
 # --- CONFIGURAÇÃO INICIAL (Gspread e Intents) ---
+# ... (sua configuração de conexão com a planilha continua a mesma) ...
 google_credentials_str = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 spreadsheet = None
 worksheet = None
@@ -25,34 +27,28 @@ if google_credentials_str:
 else:
     print("AVISO: Secret 'GOOGLE_CREDENTIALS_JSON' não encontrado.")
 
-# --- BOT, FASTAPI E CONFIGURAções DE SEGURANÇA ---
+# --- BOT, FASTAPI E CONFIGURAÇÕES DE SEGURANÇA ---
 intents = discord.Intents.default()
 intents.message_content = True
+intents.reactions = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 SECRET_KEY = os.environ.get("NOTIFY_SECRET_KEY")
 TARGET_CHANNEL_ID = int(os.environ.get("DISCORD_CHANNEL_ID"))
 
-app = FastAPI(docs_url=None, redoc_url=None) # Desativa a documentação automática
+app = FastAPI(docs_url=None, redoc_url=None)
 
 # --- LÓGICA DO SERVIDOR WEB (FASTAPI) ---
 
-# --- INÍCIO DA CORREÇÃO ---
-# Em vez de @app.get, usamos @app.api_route para aceitar tanto GET quanto HEAD.
 @app.api_route("/", methods=["GET", "HEAD"])
 def health_check():
-    """Rota de Health Check para o Render."""
     return {"status": "Bot is alive and listening!"}
-# --- FIM DA CORREÇÃO ---
 
 @app.post("/notify")
 async def handle_notification(request: Request):
-    """Recebe a notificação do Google Apps Script."""
-    auth_key = request.headers.get('Authorization')
-    if auth_key != SECRET_KEY:
+    if request.headers.get('Authorization') != SECRET_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
-
     try:
         data = await request.json()
         mensagem = data.get('message')
@@ -66,22 +62,68 @@ async def handle_notification(request: Request):
             return {"status": "Notification sent!"}
         else:
             raise HTTPException(status_code=500, detail="Discord channel not found")
-            
     except Exception as e:
         print(f"Erro ao processar notificação: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# --- FUNÇÃO AUXILIAR PARA O LEMBRETE ---
+def parse_time(time_str: str) -> int:
+    match = re.match(r"(\d+)([smh])$", time_str.lower())
+    if not match: return None
+    value, unit = match.groups()
+    value = int(value)
+    if unit == 's': return value
+    if unit == 'm': return value * 60
+    if unit == 'h': return value * 3600
+    return None
+
 # --- EVENTOS E COMANDOS DO DISCORD ---
-# ... (Todos os seus comandos /verificar, /ajuda, etc. continuam aqui) ...
+
 @bot.event
 async def on_ready():
     print(f'Bot conectado como {bot.user}')
     await bot.tree.sync()
     print('---------------------------')
 
+@bot.event
+async def on_reaction_add(reaction, user):
+    if user == bot.user: return
+    if str(reaction.emoji) == '👍':
+        message = reaction.message
+        if message.author == bot.user and "pronto para Impressão!" in message.content and "(impresso)" not in message.content:
+            novo_conteudo = message.content + " (impresso)"
+            await message.edit(content=novo_conteudo)
+            print(f"Mensagem {message.id} editada para adicionar '(impresso)'")
+
+# --- Seus Comandos de Barra ---
+@bot.tree.command(name="ajuda", description="Mostra uma lista de todos os comandos disponíveis.")
+# ... (código do /ajuda) ...
+
+@bot.tree.command(name="verificar", description="Verifica orçamentos com status pendentes na planilha.")
+# ... (código do /verificar) ...
+
+@bot.tree.command(name="lembrete", description="Agenda um lembrete para você.")
+# ... (código do /lembrete) ...
+
+@bot.tree.command(name="ponto", description="Agenda um lembrete de 1 hora para bater o ponto.")
+# ... (código do /ponto) ...
+
+# --- Seus Comandos de Prefixo ---
+@bot.command()
+async def ping(ctx):
+    await ctx.send('Pong!')
+
+@bot.command()
+async def mengao(ctx):
+    await ctx.send('O mengão ganhou, hoje é no amor!')
+
+@bot.command()
+async def ler(ctx, celula: str):
+    # ... (código do !ler) ...
+    pass
+
 # --- INICIALIZAÇÃO DO BOT E DO SERVIDOR ---
 @app.on_event("startup")
 async def startup_event():
-    """Inicia o bot do Discord como uma tarefa de fundo."""
     asyncio.create_task(bot.start(TOKEN))
     print("Tarefa de inicialização do bot do Discord criada.")

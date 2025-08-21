@@ -4,29 +4,30 @@ from discord import app_commands
 import os
 import gspread
 import json
-from flask import Flask, request
-from threading import Thread
 import asyncio
 
+# --- NOVAS BIBLIOTECAS PARA O SERVIDOR WEB ---
+from fastapi import FastAPI, Request, HTTPException
+import uvicorn
+
 # --- CONFIGURAÇÃO INICIAL (Gspread e Intents) ---
-# ... (toda a sua configuração inicial de gspread continua aqui) ...
+# Esta parte continua a mesma
 google_credentials_str = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+spreadsheet = None
+worksheet = None
 if google_credentials_str:
     try:
         google_credentials_dict = json.loads(google_credentials_str)
         gc = gspread.service_account_from_dict(google_credentials_dict)
-        # Removido print daqui para um log mais limpo
         spreadsheet = gc.open("Cópia de @Status clientes 2025")
         worksheet = spreadsheet.worksheet("AGOSTO 2025")
         print(f"Conectado à planilha '{spreadsheet.title}'.")
     except Exception as e:
         print(f"ERRO CRÍTICO ao conectar à planilha: {e}")
-        spreadsheet = None
 else:
-    gc = None; spreadsheet = None
     print("AVISO: Secret 'GOOGLE_CREDENTIALS_JSON' não encontrado.")
 
-# --- BOT, FLASK E CONFIGURAÇÕES DE SEGURANÇA ---
+# --- BOT, FASTAPI E CONFIGURAÇÕES DE SEGURANÇA ---
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -35,79 +36,57 @@ TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 SECRET_KEY = os.environ.get("NOTIFY_SECRET_KEY")
 TARGET_CHANNEL_ID = int(os.environ.get("DISCORD_CHANNEL_ID"))
 
-app = Flask('')
+# Cria a aplicação web FastAPI
+app = FastAPI()
 
-# --- LÓGICA DO SERVIDOR WEB (COM LOGS DETALHADOS) ---
-@app.route('/')
+# --- LÓGICA DO SERVIDOR WEB (FASTAPI) ---
+
+@app.get("/")
 def health_check():
-    return "Bot is alive and listening!", 200
+    """Rota de Health Check para o Render."""
+    return {"status": "Bot is alive and listening!"}
 
-@app.route('/notify', methods=['POST'])
-def handle_notification():
-    print("\n--- ROTA /notify ACIONADA! ---")
-    
-    # Log 1: Verifica o cabeçalho de autorização
+@app.post("/notify")
+async def handle_notification(request: Request):
+    """Recebe a notificação do Google Apps Script."""
     auth_key = request.headers.get('Authorization')
-    print(f"Cabeçalho de autorização recebido: '{auth_key}'")
-    
     if auth_key != SECRET_KEY:
-        print("!!! FALHA DE AUTORIZAÇÃO !!! Chave secreta não confere.")
-        return "Unauthorized", 401
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    print(">>> Autorização OK.")
-    
-    # Log 2: Tenta processar os dados JSON
     try:
-        data = request.json
-        print(f"Dados JSON recebidos: {data}")
+        data = await request.json()
         mensagem = data.get('message')
-    except Exception as e:
-        print(f"!!! ERRO AO PROCESSAR JSON !!! Detalhes: {e}")
-        return "JSON Error", 400
-
-    # Log 3: Verifica se a mensagem existe
-    if not mensagem:
-        print("!!! FALHA: 'message' não encontrada no JSON.")
-        return "Bad Request: 'message' not found in JSON", 400
-    
-    print(">>> Mensagem extraída com sucesso. Agendando tarefa no Discord...")
-    
-    # Log 4: Agenda a tarefa no loop do bot
-    bot.loop.call_soon_threadsafe(
-        asyncio.create_task,
-        enviar_notificacao_discord(mensagem)
-    )
-    
-    print("--- ROTA /notify CONCLUÍDA COM SUCESSO ---")
-    return "Notification received!", 200
-
-async def enviar_notificacao_discord(mensagem: str):
-    try:
+        if not mensagem:
+            raise HTTPException(status_code=400, detail="Bad Request: 'message' not found")
+        
+        # Envia a mensagem para o Discord
         channel = await bot.fetch_channel(TARGET_CHANNEL_ID)
         if channel:
             await channel.send(mensagem)
-            print(f">>> Notificação enviada para o canal {TARGET_CHANNEL_ID}")
+            print(f"Notificação enviada para o canal {TARGET_CHANNEL_ID}")
+            return {"status": "Notification sent!"}
+        else:
+            raise HTTPException(status_code=500, detail="Discord channel not found")
+            
     except Exception as e:
-        print(f">>> ERRO ao tentar enviar notificação para o Discord: {e}")
+        print(f"Erro ao processar notificação: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-# --- EVENTOS E COMANDOS DO DISCORD ---
+# --- EVENTOS E COMANDOS DO DISCORD (Continuam os mesmos) ---
+
 @bot.event
 async def on_ready():
     print(f'Bot conectado como {bot.user}')
     await bot.tree.sync()
     print('---------------------------')
-# ... (Seus comandos /verificar, /ajuda, etc. continuam aqui) ...
 
-# --- FUNÇÕES PARA RODAR TUDO JUNTO ---
-def run_flask():
-    app.run(host='0.0.0.0', port=8080)
-def run_bot():
-    if TOKEN: bot.run(TOKEN)
-    else: print("ERRO CRÍTICO FINAL: Token do Discord não encontrado.")
+# ... (Todos os seus comandos /verificar, /ajuda, /ponto, !ping, !ler, etc. continuam aqui, sem alterações) ...
 
-# --- INICIALIZAÇÃO ---
-if __name__ == "__main__":
-    flask_thread = Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-    run_bot()
+
+# --- INICIALIZAÇÃO DO BOT E DO SERVIDOR ---
+
+@app.on_event("startup")
+async def startup_event():
+    """Inicia o bot do Discord como uma tarefa de fundo."""
+    asyncio.create_task(bot.start(TOKEN))
+    print("Tarefa de inicialização do bot do Discord criada.")

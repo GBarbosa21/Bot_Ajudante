@@ -6,6 +6,7 @@ import gspread
 import json
 import asyncio
 import re
+import time # <-- Adicionado
 
 # --- BIBLIOTECAS PARA O SERVIDOR WEB DE PRODUÇÃO ---
 from fastapi import FastAPI, Request, HTTPException
@@ -38,6 +39,10 @@ TARGET_CHANNEL_ID = int(os.environ.get("DISCORD_CHANNEL_ID"))
 
 app = FastAPI(docs_url=None, redoc_url=None)
 
+# --- LÓGICA ANTI-DUPLICIDADE ---
+notification_locks = {}
+LOCK_COOLDOWN_SECONDS = 30
+
 # --- LÓGICA DO SERVIDOR WEB (FASTAPI) ---
 
 @app.api_route("/", methods=["GET", "HEAD"])
@@ -47,14 +52,25 @@ def health_check():
 
 @app.post("/notify")
 async def handle_notification(request: Request):
-    """Recebe a notificação do Google Apps Script."""
+    """Recebe a notificação do Google Apps Script e aplica a trava anti-duplicidade."""
     if request.headers.get('Authorization') != SECRET_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
     try:
         data = await request.json()
         mensagem = data.get('message')
-        if not mensagem:
-            raise HTTPException(status_code=400, detail="Bad Request: 'message' not found")
+        row_number = data.get('row_number')
+
+        if not mensagem or not row_number:
+            raise HTTPException(status_code=400, detail="Bad Request: 'message' ou 'row_number' faltando no JSON")
+
+        # --- LÓGICA ANTI-DUPLICIDADE EM AÇÃO ---
+        current_time = time.time()
+        if row_number in notification_locks and (current_time - notification_locks[row_number]) < LOCK_COOLDOWN_SECONDS:
+            print(f"Notificação duplicada para a linha {row_number} ignorada.")
+            return {"status": "Duplicate ignored"}
+        
+        notification_locks[row_number] = current_time
+        # --- FIM DA LÓGICA ANTI-DUPLICIDADE ---
         
         channel = await bot.fetch_channel(TARGET_CHANNEL_ID)
         if channel:

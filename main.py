@@ -138,6 +138,19 @@ async def buscar_orcamento(interaction: discord.Interaction, id: str):
 
 # Adicione outros comandos (/ajuda, /ponto, etc.) aqui se desejar.
 
+# Em algum lugar perto das funções auxiliares
+def formatarData(data_str):
+    """Formata uma string de data se possível."""
+    try:
+        # Tenta converter para um formato de data e depois para dd/mm
+        # Esta é uma implementação simples. Pode precisar de ajuste dependendo do formato da data na planilha.
+        from datetime import datetime
+        # Exemplo: se a data vier como '2025-08-22 ...'
+        dt_obj = datetime.strptime(data_str.split(' ')[0], '%Y-%m-%d')
+        return dt_obj.strftime('%d/%m')
+    except:
+        return data_str # Retorna o texto original se não conseguir formatar
+
 # --- INICIALIZAÇÃO DO BOT ---
 if TOKEN:
     bot.run(TOKEN)

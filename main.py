@@ -4,13 +4,12 @@ from discord import app_commands
 import os
 import gspread
 import json
-import asyncio
-import re
+from datetime import datetime
 
-# --- CONFIGURAÇÃO INICIAL (Gspread e Intents) ---
-google_credentials_str = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+# --- CONFIGURAÇÃO INICIAL (Gspread) ---
 spreadsheet = None
 worksheet = None
+google_credentials_str = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 if google_credentials_str:
     try:
         google_credentials_dict = json.loads(google_credentials_str)
@@ -26,13 +25,24 @@ else:
 # --- BOT E CONFIGURAÇÕES DE SEGURANÇA ---
 intents = discord.Intents.default()
 intents.message_content = True
-intents.reactions = True
 bot = commands.Bot(command_prefix='!', intents=intents)
-
 TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 
-# --- EVENTOS E COMANDOS DO DISCORD ---
+# --- FUNÇÕES AUXILIARES ---
+def formatar_data_br(data_str: str) -> str:
+    """Tenta formatar uma string de data para o padrão dd/mm/YYYY."""
+    if not data_str:
+        return "N/A"
+    try:
+        # Tenta adivinhar o formato da data vindo da planilha
+        dt_obj = datetime.strptime(data_str, '%d/%m/%Y')
+        return dt_obj.strftime('%d/%m/%Y')
+    except ValueError:
+        return data_str # Retorna o texto original se não conseguir formatar
+    except Exception:
+        return data_str
 
+# --- EVENTOS DO DISCORD ---
 @bot.event
 async def on_ready():
     print(f'Bot conectado como {bot.user}')
@@ -48,7 +58,7 @@ async def on_ready():
 @bot.tree.command(name="verificar", description="Verifica orçamentos com status pendentes na planilha.")
 @app_commands.describe(efemero="Escolha 'Falso' para mostrar a resposta para todos no canal.")
 async def verificar(interaction: discord.Interaction, efemero: bool = True):
-    if not spreadsheet:
+    if not worksheet:
         await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=efemero)
         return
     try:
@@ -85,41 +95,39 @@ async def verificar(interaction: discord.Interaction, efemero: bool = True):
             resposta_texto = resposta_texto[:1990] + "\n...(lista muito longa, foi cortada)"
             
         await interaction.followup.send(resposta_texto, ephemeral=efemero)
-
     except Exception as e:
         await interaction.followup.send(f"Ocorreu um erro ao verificar a planilha: {e}", ephemeral=efemero)
 
 @bot.tree.command(name="buscar_orcamento", description="Busca os detalhes de um orçamento pelo seu ID.")
 @app_commands.describe(id="O número do orçamento que você quer encontrar.")
 async def buscar_orcamento(interaction: discord.Interaction, id: str):
-    if not spreadsheet:
+    if not worksheet:
         await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=True)
         return
 
     await interaction.response.defer(ephemeral=True)
 
     try:
-        # Pega todos os dados da planilha
         todos_os_dados = worksheet.get_all_values()
-        
         linha_encontrada = None
         
         # Procura na Coluna D (índice 3) pelo ID fornecido
-        for linha in todos_os_dados[1:]: # Pula o cabeçalho
-            if linha[3] == id:
+        for linha in todos_os_dados[1:]:
+            if len(linha) > 3 and linha[3] == id:
                 linha_encontrada = linha
-                break # Para a busca assim que encontrar
+                break
 
         if linha_encontrada:
-            # Se encontrou, mapeia os dados com base na estrutura da sua planilha
-            # (Ajuste os índices [n] se a ordem das colunas mudar)
-            cliente = linha_encontrada[2]
-            num_orcamento = linha_encontrada[3]
-            qtd_docs = linha_encontrada[4]
-            status = linha_encontrada[7]
-            data_entrega = formatarData(planilha.getRange(linha, COLUNA_DATA_ENTREGA).getValue())
+            # Pega os dados da linha encontrada usando os índices corretos
+            cliente = linha_encontrada[2]       # Coluna C
+            num_orcamento = linha_encontrada[3] # Coluna D
+            qtd_docs = linha_encontrada[4]      # Coluna E
+            status = linha_encontrada[7]        # Coluna H
+            data_entrega_str = linha_encontrada[1] # Coluna B
+            
+            # Formata a data usando nossa função auxiliar
+            data_formatada = formatar_data_br(data_entrega_str)
 
-            # Cria um "Embed" para exibir os dados de forma organizada
             embed = discord.Embed(
                 title=f"Detalhes do Orçamento: {num_orcamento}",
                 color=discord.Color.green()
@@ -127,7 +135,7 @@ async def buscar_orcamento(interaction: discord.Interaction, id: str):
             embed.add_field(name="Cliente", value=cliente, inline=True)
             embed.add_field(name="Status Atual", value=status, inline=True)
             embed.add_field(name="Qtd. Documentos", value=qtd_docs, inline=True)
-            embed.add_field(name="Data de Entrega", value=data_entrega, inline=True)
+            embed.add_field(name="Data de Entrega", value=data_formatada, inline=True)
 
             await interaction.followup.send(embed=embed, ephemeral=True)
         else:
@@ -137,19 +145,6 @@ async def buscar_orcamento(interaction: discord.Interaction, id: str):
         await interaction.followup.send(f"Ocorreu um erro ao buscar na planilha: {e}", ephemeral=True)
 
 # Adicione outros comandos (/ajuda, /ponto, etc.) aqui se desejar.
-
-# Em algum lugar perto das funções auxiliares
-def formatarData(data_str):
-    """Formata uma string de data se possível."""
-    try:
-        # Tenta converter para um formato de data e depois para dd/mm
-        # Esta é uma implementação simples. Pode precisar de ajuste dependendo do formato da data na planilha.
-        from datetime import datetime
-        # Exemplo: se a data vier como '2025-08-22 ...'
-        dt_obj = datetime.strptime(data_str.split(' ')[0], '%Y-%m-%d')
-        return dt_obj.strftime('%d/%m')
-    except:
-        return data_str # Retorna o texto original se não conseguir formatar
 
 # --- INICIALIZAÇÃO DO BOT ---
 if TOKEN:

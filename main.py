@@ -224,6 +224,8 @@ async def atrasados(interaction: discord.Interaction, efemero: bool = True):
 
 # Adicione outros comandos (/ajuda, /ponto, etc.) aqui se desejar.
 
+app = Flask('')
+
 @app.route('/')
 def health_check():
     """Esta rota responde aos 'pings' do Render e do UptimeRobot."""

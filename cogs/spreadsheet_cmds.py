@@ -192,6 +192,73 @@ class SpreadsheetCommands(commands.Cog):
         except Exception as e:
             await interaction.followup.send(f"Ocorreu um erro ao verificar os projetos atrasados: {e}", ephemeral=efemero)
 
+    
+    @app_commands.command(name="listar_status", description="Lista todos os orçamentos com um status específico.")
+    @app_commands.describe(status="Escolha o status que você deseja listar.")
+    # Cria a lista de opções para o usuário escolher
+    @app_commands.choices(status=[
+        app_commands.Choice(name="01 Scan", value="01 Scan"),
+        app_commands.Choice(name="03 Tradução", value="03 Tradução"),
+        app_commands.Choice(name="04 Revisão", value="04 Revisão"),
+        app_commands.Choice(name="05 Imprimir", value="05 Imprimir"),
+        app_commands.Choice(name="06 Numerar", value="06 Numerar"),
+        app_commands.Choice(name="07 Assinar Digital", value="07 Assinar Digital"),
+        app_commands.Choice(name="09 Pronto", value="09 Pronto"),
+        app_commands.Choice(name="10 Entregue", value="10 Entregue"),
+        app_commands.Choice(name="11 Enviar e-mail", value="11 Enviar e-mail"),
+        app_commands.Choice(name="15 Aguardando doc", value="15 Aguardando doc"),
+        app_commands.Choice(name="16 Cart.Tradução", value="16 Cart.Tradução"),
+        app_commands.Choice(name="17 Cart. Original", value="17 Cart. Original")
+    ])
+    async def listar_status(self, interaction: discord.Interaction, status: str, efemero: bool = True):
+        if not self.worksheet:
+            await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=efemero)
+            return
+
+        await interaction.response.defer(ephemeral=efemero)
+
+        try:
+            todos_os_dados = self.worksheet.get_all_values()
+            orcamentos_encontrados = []
+            
+            for linha in todos_os_dados[1:]: # Pula o cabeçalho
+                try:
+                    status_da_linha = linha[7] # Coluna H
+                    # Compara o status da linha com o status escolhido pelo usuário
+                    if status_da_linha == status:
+                        id_orcamento = linha[3]   # Coluna D
+                        nome_cliente = linha[2]   # Coluna C
+                        orcamentos_encontrados.append(f"`{id_orcamento}` - {nome_cliente}")
+                except IndexError:
+                    continue
+
+            if not orcamentos_encontrados:
+                embed = discord.Embed(
+                    title=f"Nenhum Projeto Encontrado",
+                    description=f"Não há nenhum orçamento com o status `{status}` no momento.",
+                    color=discord.Color.orange()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=efemero)
+                return
+            
+            # Monta a resposta com os projetos encontrados
+            embed = discord.Embed(
+                title=f"Orçamentos com Status: '{status}'",
+                color=discord.Color.blue()
+            )
+            
+            lista_projetos_str = "\n".join(orcamentos_encontrados)
+            if len(lista_projetos_str) > 4000:
+                lista_projetos_str = lista_projetos_str[:4000] + "\n...(lista muito longa)"
+
+            embed.description = lista_projetos_str
+            
+            await interaction.followup.send(embed=embed, ephemeral=efemero)
+
+        except Exception as e:
+            await interaction.followup.send(f"Ocorreu um erro ao listar os projetos: {e}", ephemeral=efemero)
+
+
 # --- Função de Setup para Carregar o Cog ---
 async def setup(bot):
     await bot.add_cog(SpreadsheetCommands(bot))

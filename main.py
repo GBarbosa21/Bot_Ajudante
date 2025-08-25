@@ -89,6 +89,53 @@ async def verificar(interaction: discord.Interaction, efemero: bool = True):
     except Exception as e:
         await interaction.followup.send(f"Ocorreu um erro ao verificar a planilha: {e}", ephemeral=efemero)
 
+@bot.tree.command(name="buscar_orcamento", description="Busca os detalhes de um orçamento pelo seu ID.")
+@app_commands.describe(id="O número do orçamento que você quer encontrar.")
+async def buscar_orcamento(interaction: discord.Interaction, id: str):
+    if not spreadsheet:
+        await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    try:
+        # Pega todos os dados da planilha
+        todos_os_dados = worksheet.get_all_values()
+        
+        linha_encontrada = None
+        
+        # Procura na Coluna D (índice 3) pelo ID fornecido
+        for linha in todos_os_dados[1:]: # Pula o cabeçalho
+            if linha[3] == id:
+                linha_encontrada = linha
+                break # Para a busca assim que encontrar
+
+        if linha_encontrada:
+            # Se encontrou, mapeia os dados com base na estrutura da sua planilha
+            # (Ajuste os índices [n] se a ordem das colunas mudar)
+            cliente = linha_encontrada[2]
+            num_orcamento = linha_encontrada[3]
+            qtd_docs = linha_encontrada[4]
+            status = linha_encontrada[7]
+            data_entrega = formatarData(planilha.getRange(linha, COLUNA_DATA_ENTREGA).getValue())
+
+            # Cria um "Embed" para exibir os dados de forma organizada
+            embed = discord.Embed(
+                title=f"Detalhes do Orçamento: {num_orcamento}",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="Cliente", value=cliente, inline=True)
+            embed.add_field(name="Status Atual", value=status, inline=True)
+            embed.add_field(name="Qtd. Documentos", value=qtd_docs, inline=True)
+            embed.add_field(name="Data de Entrega", value=data_entrega, inline=True)
+
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        else:
+            await interaction.followup.send(f"Não foi possível encontrar nenhum orçamento com o ID `{id}`.", ephemeral=True)
+
+    except Exception as e:
+        await interaction.followup.send(f"Ocorreu um erro ao buscar na planilha: {e}", ephemeral=True)
+
 # Adicione outros comandos (/ajuda, /ponto, etc.) aqui se desejar.
 
 # --- INICIALIZAÇÃO DO BOT ---

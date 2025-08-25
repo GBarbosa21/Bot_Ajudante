@@ -220,6 +220,41 @@ async def atrasados(interaction: discord.Interaction, efemero: bool = True):
     except Exception as e:
         await interaction.followup.send(f"Ocorreu um erro ao verificar os projetos atrasados: {e}", ephemeral=efemero)
 
+@bot.tree.command(name="status_bot", description="Verifica a saúde e as conexões do bot.")
+@app_commands.describe(efemero="Escolha 'Falso' para mostrar a resposta para todos.")
+async def status_bot(interaction: discord.Interaction, efemero: bool = True):
+    await interaction.response.defer(ephemeral=efemero)
+
+    # 1. Verifica a latência com o Discord
+    latencia_ms = round(bot.latency * 1000)
+    
+    # 2. Verifica a conexão com a Planilha Google
+    status_planilha = "Com Falha ❌"
+    try:
+        # Tenta uma operação de leitura rápida e inofensiva (ler a célula A1)
+        if worksheet:
+            worksheet.cell(1, 1).value
+            status_planilha = "Ativa e Funcionando ✅"
+        else:
+            status_planilha = "Desativada (Secret não encontrada) ⚠️"
+    except Exception as e:
+        print(f"Erro no health check da planilha: {e}")
+        status_planilha = f"Com Falha ❌ (Erro: {e})"
+
+    # 3. Monta a resposta em um Embed
+    embed = discord.Embed(
+        title="Status do Ajudante",
+        color=discord.Color.dark_grey()
+    )
+    embed.add_field(name="Status Geral", value="Online ✅", inline=False)
+    embed.add_field(name="Latência com o Discord", value=f"{latencia_ms}ms ⚡", inline=False)
+    embed.add_field(name="Conexão com Google Sheets", value=status_planilha, inline=False)
+    
+    timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    embed.set_footer(text=f"Verificado em: {timestamp}")
+    
+    await interaction.followup.send(embed=embed, ephemeral=efemero)
+
 
 
 # Adicione outros comandos (/ajuda, /ponto, etc.) aqui se desejar.

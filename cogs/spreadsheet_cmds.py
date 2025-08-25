@@ -129,78 +129,78 @@ class SpreadsheetCommands(commands.Cog):
         
     @app_commands.command(name="atrasados", description="Lista todos os projetos com data de entrega vencida.")
     @app_commands.describe(efemero="Escolha 'Falso' para mostrar a resposta para todos.")
-    async def atrasados(interaction: discord.Interaction, efemero: bool = True):
-        if not worksheet:
-            await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=True)
-            return
-    
-        await interaction.response.defer(ephemeral=efemero)
-    
-        try:
-            # Defina os status que indicam que um projeto já foi concluído
-            status_finalizados = ["09 Pronto", "10 Entregue", "12 Cancelado"]
-            
-            # Pega a data de hoje, sem as horas, para a comparação
-            hoje = datetime.now().date()
-            
-            todos_os_dados = worksheet.get_all_values()
-            projetos_atrasados = []
-            
-            # Índices das colunas da sua planilha
-            COLUNA_DATA_ENTREGA_IDX = 1 # Coluna B
-            COLUNA_ID_ORCAMENTO_IDX = 3 # Coluna D
-            COLUNA_CLIENTE_IDX = 2      # Coluna C
-            COLUNA_STATUS_IDX = 7       # Coluna H
-            
-            for linha in todos_os_dados[1:]: # Pula o cabeçalho
-                try:
-                    data_entrega_str = linha[COLUNA_DATA_ENTREGA_IDX]
-                    status_da_linha = linha[COLUNA_STATUS_IDX]
-                    
-                    # Pula a linha se o status for de finalizado ou se a data estiver vazia
-                    if status_da_linha in status_finalizados or not data_entrega_str:
-                        continue
-                        
-                    # Converte a data da planilha para um objeto de data
-                    data_entrega = datetime.strptime(data_entrega_str, '%d/%m/%Y').date()
-                    
-                    # A MÁGICA: Compara se a data de entrega é anterior a hoje
-                    if data_entrega < hoje:
-                        id_orcamento = linha[COLUNA_ID_ORCAMENTO_IDX]
-                        nome_cliente = linha[COLUNA_CLIENTE_IDX]
-                        projetos_atrasados.append(f"`{id_orcamento}` - {nome_cliente} (Venceu em: {data_entrega_str})")
-    
-                except (ValueError, IndexError):
-                    # Ignora linhas com data em formato incorreto ou mal formatadas
-                    continue
-    
-            if not projetos_atrasados:
-                embed = discord.Embed(
-                    title="✅ Nenhum Projeto Atrasado",
-                    description="Ótima notícia! Todos os projetos estão em dia.",
-                    color=discord.Color.green()
-                )
-                await interaction.followup.send(embed=embed, ephemeral=efemero)
+        async def atrasados(interaction: discord.Interaction, efemero: bool = True):
+            if not worksheet:
+                await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=True)
                 return
+        
+            await interaction.response.defer(ephemeral=efemero)
+        
+            try:
+                # Defina os status que indicam que um projeto já foi concluído
+                status_finalizados = ["09 Pronto", "10 Entregue", "12 Cancelado"]
                 
-            # Monta a resposta com os projetos atrasados
-            embed = discord.Embed(
-                title="🚨 Projetos Atrasados",
-                description="Os seguintes projetos estão com a data de entrega vencida e precisam de atenção:",
-                color=discord.Color.red()
-            )
-            
-            lista_projetos_str = "\n".join(projetos_atrasados)
-            if len(lista_projetos_str) > 4000:
-                lista_projetos_str = lista_projetos_str[:4000] + "\n...(lista muito longa)"
+                # Pega a data de hoje, sem as horas, para a comparação
+                hoje = datetime.now().date()
+                
+                todos_os_dados = worksheet.get_all_values()
+                projetos_atrasados = []
+                
+                # Índices das colunas da sua planilha
+                COLUNA_DATA_ENTREGA_IDX = 1 # Coluna B
+                COLUNA_ID_ORCAMENTO_IDX = 3 # Coluna D
+                COLUNA_CLIENTE_IDX = 2      # Coluna C
+                COLUNA_STATUS_IDX = 7       # Coluna H
+                
+                for linha in todos_os_dados[1:]: # Pula o cabeçalho
+                    try:
+                        data_entrega_str = linha[COLUNA_DATA_ENTREGA_IDX]
+                        status_da_linha = linha[COLUNA_STATUS_IDX]
+                        
+                        # Pula a linha se o status for de finalizado ou se a data estiver vazia
+                        if status_da_linha in status_finalizados or not data_entrega_str:
+                            continue
+                            
+                        # Converte a data da planilha para um objeto de data
+                        data_entrega = datetime.strptime(data_entrega_str, '%d/%m/%Y').date()
+                        
+                        # A MÁGICA: Compara se a data de entrega é anterior a hoje
+                        if data_entrega < hoje:
+                            id_orcamento = linha[COLUNA_ID_ORCAMENTO_IDX]
+                            nome_cliente = linha[COLUNA_CLIENTE_IDX]
+                            projetos_atrasados.append(f"`{id_orcamento}` - {nome_cliente} (Venceu em: {data_entrega_str})")
+        
+                    except (ValueError, IndexError):
+                        # Ignora linhas com data em formato incorreto ou mal formatadas
+                        continue
+        
+                if not projetos_atrasados:
+                    embed = discord.Embed(
+                        title="✅ Nenhum Projeto Atrasado",
+                        description="Ótima notícia! Todos os projetos estão em dia.",
+                        color=discord.Color.green()
+                    )
+                    await interaction.followup.send(embed=embed, ephemeral=efemero)
+                    return
+                    
+                # Monta a resposta com os projetos atrasados
+                embed = discord.Embed(
+                    title="🚨 Projetos Atrasados",
+                    description="Os seguintes projetos estão com a data de entrega vencida e precisam de atenção:",
+                    color=discord.Color.red()
+                )
+                
+                lista_projetos_str = "\n".join(projetos_atrasados)
+                if len(lista_projetos_str) > 4000:
+                    lista_projetos_str = lista_projetos_str[:4000] + "\n...(lista muito longa)"
+        
+                embed.description = lista_projetos_str
+                
+                await interaction.followup.send(embed=embed, ephemeral=efemero)
+        
+            except Exception as e:
+                await interaction.followup.send(f"Ocorreu um erro ao verificar os projetos atrasados: {e}", ephemeral=efemero)
     
-            embed.description = lista_projetos_str
-            
-            await interaction.followup.send(embed=embed, ephemeral=efemero)
-    
-        except Exception as e:
-            await interaction.followup.send(f"Ocorreu um erro ao verificar os projetos atrasados: {e}", ephemeral=efemero)
-
 
 # --- Função de Setup para Carregar o Cog ---
 async def setup(bot):

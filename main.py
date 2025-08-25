@@ -222,8 +222,26 @@ async def atrasados(interaction: discord.Interaction, efemero: bool = True):
 
 # Adicione outros comandos (/ajuda, /ponto, etc.) aqui se desejar.
 
-# --- INICIALIZAÇÃO DO BOT ---
-if TOKEN:
-    bot.run(TOKEN)
-else:
-    print("ERRO CRÍTICO FINAL: O Secret DISCORD_BOT_TOKEN não foi encontrado.")
+@app.route('/')
+def health_check():
+    """Esta rota responde aos 'pings' do Render e do UptimeRobot."""
+    return "Bot de comandos está online!", 200
+
+def run_flask():
+    """Roda o servidor Flask na porta que o Render espera."""
+    # Render fornece a porta através de uma variável de ambiente PORT, com 10000 como padrão.
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
+
+# --- INICIALIZAÇÃO ---
+if __name__ == "__main__":
+    # Inicia o servidor web em uma thread de fundo
+    flask_thread = Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # Roda o bot na thread principal
+    if TOKEN:
+        bot.run(TOKEN)
+    else:
+        print("ERRO CRÍTICO FINAL: O Secret DISCORD_BOT_TOKEN não foi encontrado.")

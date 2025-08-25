@@ -83,50 +83,50 @@ class SpreadsheetCommands(commands.Cog):
 
     @app_commands.command(name="buscar_orcamento", description="Busca os detalhes de um orçamento pelo ID.")
     @app_commands.describe(id="O número do orçamento que você quer encontrar.")
-  async def buscar_orcamento(interaction: discord.Interaction, id: str):
-      if not worksheet:
-          await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=True)
-          return
-  
-      await interaction.response.defer(ephemeral=True)
-  
-      try:
-          todos_os_dados = worksheet.get_all_values()
-          linha_encontrada = None
-          
-          # Procura na Coluna D (índice 3) pelo ID fornecido
-          for linha in todos_os_dados[1:]:
-              if len(linha) > 3 and linha[3] == id:
-                  linha_encontrada = linha
-                  break
-  
-          if linha_encontrada:
-              # Pega os dados da linha encontrada usando os índices corretos
-              cliente = linha_encontrada[2]       # Coluna C
-              num_orcamento = linha_encontrada[3] # Coluna D
-              qtd_docs = linha_encontrada[4]      # Coluna E
-              status = linha_encontrada[7]        # Coluna H
-              data_entrega_str = linha_encontrada[1] # Coluna B
+      async def buscar_orcamento(interaction: discord.Interaction, id: str):
+          if not worksheet:
+              await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=True)
+              return
+      
+          await interaction.response.defer(ephemeral=True)
+      
+          try:
+              todos_os_dados = worksheet.get_all_values()
+              linha_encontrada = None
               
-              # Formata a data usando nossa função auxiliar
-              data_formatada = formatar_data_br(data_entrega_str)
-  
-              embed = discord.Embed(
-                  title=f"Detalhes do Orçamento: {num_orcamento}",
-                  color=discord.Color.green()
-              )
-              embed.add_field(name="Cliente", value=cliente, inline=True)
-              embed.add_field(name="Status Atual", value=status, inline=True)
-              embed.add_field(name="Qtd. Documentos", value=qtd_docs, inline=True)
-              embed.add_field(name="Data de Entrega", value=data_formatada, inline=True)
-  
-              await interaction.followup.send(embed=embed, ephemeral=True)
-          else:
-              await interaction.followup.send(f"Não foi possível encontrar nenhum orçamento com o ID `{id}`.", ephemeral=True)
-  
-      except Exception as e:
-          await interaction.followup.send(f"Ocorreu um erro ao buscar na planilha: {e}", ephemeral=True)
-    
+              # Procura na Coluna D (índice 3) pelo ID fornecido
+              for linha in todos_os_dados[1:]:
+                  if len(linha) > 3 and linha[3] == id:
+                      linha_encontrada = linha
+                      break
+      
+              if linha_encontrada:
+                  # Pega os dados da linha encontrada usando os índices corretos
+                  cliente = linha_encontrada[2]       # Coluna C
+                  num_orcamento = linha_encontrada[3] # Coluna D
+                  qtd_docs = linha_encontrada[4]      # Coluna E
+                  status = linha_encontrada[7]        # Coluna H
+                  data_entrega_str = linha_encontrada[1] # Coluna B
+                  
+                  # Formata a data usando nossa função auxiliar
+                  data_formatada = formatar_data_br(data_entrega_str)
+      
+                  embed = discord.Embed(
+                      title=f"Detalhes do Orçamento: {num_orcamento}",
+                      color=discord.Color.green()
+                  )
+                  embed.add_field(name="Cliente", value=cliente, inline=True)
+                  embed.add_field(name="Status Atual", value=status, inline=True)
+                  embed.add_field(name="Qtd. Documentos", value=qtd_docs, inline=True)
+                  embed.add_field(name="Data de Entrega", value=data_formatada, inline=True)
+      
+                  await interaction.followup.send(embed=embed, ephemeral=True)
+              else:
+                  await interaction.followup.send(f"Não foi possível encontrar nenhum orçamento com o ID `{id}`.", ephemeral=True)
+      
+          except Exception as e:
+              await interaction.followup.send(f"Ocorreu um erro ao buscar na planilha: {e}", ephemeral=True)
+        
     @app_commands.command(name="atrasados", description="Lista todos os projetos com data de entrega vencida.")
     @app_commands.describe(efemero="Escolha 'Falso' para mostrar a resposta para todos.")
     async def atrasados(interaction: discord.Interaction, efemero: bool = True):

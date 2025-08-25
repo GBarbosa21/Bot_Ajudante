@@ -23,17 +23,31 @@ class UtilityCommands(commands.Cog):
         return None
 
     # --- Comandos ---
-    @app_commands.command(name="ajuda", description="Mostra uma lista de todos os comandos.")
+    @app_commands.command(name="ajuda", description="Mostra uma lista de todos os comandos disponíveis.")
     async def ajuda(self, interaction: discord.Interaction):
         embed = discord.Embed(
-            title="Ajuda do Bot",
-            description="Aqui está uma lista de todos os comandos que eu entendo:",
+            title="Ajuda do Bot Ajudante",
+            description="Aqui está uma lista de todos os comandos que eu entendo, organizados por módulo:",
             color=discord.Color.blue()
         )
-        # Pega todos os comandos de barra registrados na árvore de comandos do bot
-        for command in self.bot.tree.get_commands():
-            embed.add_field(name=f"/{command.name}", value=command.description, inline=False)
-        
+
+        # Abordagem mais robusta: iterar por cada Cog carregado no bot
+        for cog_name in self.bot.cogs:
+            cog = self.bot.get_cog(cog_name)
+            
+            # Pega apenas os comandos de barra (app_commands) deste cog
+            commands_in_cog = [cmd for cmd in cog.get_app_commands() if isinstance(cmd, app_commands.Command)]
+            
+            if commands_in_cog: # Só adiciona a seção se o Cog tiver comandos de barra
+                
+                # Monta a string com a lista de comandos para este Cog
+                command_list_str = ""
+                for command in commands_in_cog:
+                    command_list_str += f"**`/{command.name}`** - {command.description}\n"
+                
+                # Adiciona um campo para o Cog e sua lista de comandos
+                embed.add_field(name=f"⚙️ Módulo: {cog_name}", value=command_list_str, inline=False)
+
         embed.set_footer(text="Use os comandos em um canal ou na minha mensagem direta.")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 

@@ -5,6 +5,8 @@ import os
 import gspread
 import json
 from datetime import datetime
+from flask import Flask
+from threading import Thread
 
 # --- CONFIGURAÇÃO INICIAL (Gspread) ---
 spreadsheet = None

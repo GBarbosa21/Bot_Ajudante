@@ -53,7 +53,7 @@ async def verificar(interaction: discord.Interaction, efemero: bool = True):
         return
     try:
         await interaction.response.defer(ephemeral=efemero)
-        status_para_procurar = ["16 Cart Tradução", "17 Cart Original", "Embalar", "05 Imprimir"]
+        status_para_procurar = ["16 Cart.Tradução", "17 Cart.Original", "Embalar", "05 Imprimir"]
         todos_os_dados = worksheet.get_all_values()
         orcamentos_encontrados = {}
         for linha in todos_os_dados[1:]:

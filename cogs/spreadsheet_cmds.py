@@ -4,6 +4,7 @@ from discord import app_commands
 import gspread
 import json
 import os
+from dotenv import load_dotenv
 from datetime import datetime
 from flask import Flask
 from threading import Thread

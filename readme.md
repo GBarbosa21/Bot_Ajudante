@@ -27,14 +27,14 @@ O bot é organizado em módulos ("Cogs") para facilitar a manutenção.
 ## 📂 Estrutura do Projeto
 
 O bot utiliza o padrão de Cogs para uma organização de código limpa e escalável.
-/BotAjudante/
-├── main.py                 # Ponto de entrada: carrega secrets, cogs e inicia o bot.
-├── requirements.txt        # Lista de dependências Python.
-├── .env.example            # Arquivo de exemplo para as variáveis de ambiente.
-├── .gitignore              # Ignora arquivos sensíveis e desnecessários.
-└── /cogs/
-├── spreadsheet_cmds.py # Cog com os comandos que interagem com a planilha.
-└── utility_cmds.py     # Cog com os comandos de utilidade e ajuda.
+</br>/BotAjudante/<br>
+├── main.py                 # Ponto de entrada: carrega secrets, cogs e inicia o bot. </br>
+├── requirements.txt        # Lista de dependências Python.<br>
+├── .env.example            # Arquivo de exemplo para as variáveis de ambiente.<br>
+├── .gitignore              # Ignora arquivos sensíveis e desnecessários.<br>
+└── /cogs/<br>
+├── spreadsheet_cmds.py # Cog com os comandos que interagem com a planilha.<br>
+└── utility_cmds.py     # Cog com os comandos de utilidade e ajuda.<br>
 
 
 ## 🚀 Instalação e Configuração

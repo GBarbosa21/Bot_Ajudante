@@ -259,6 +259,69 @@ class SpreadsheetCommands(commands.Cog):
             await interaction.followup.send(f"Ocorreu um erro ao listar os projetos: {e}", ephemeral=efemero)
 
 
+    @app_commands.command(name="revisao_dia", describe="Mostra todos Orçamentos do dia com Status: 04 Revisão")
+    @app_commands.describe(efemero="Escolha 'Falso' para mostrar para todos)
+    async def atrasados(self, interaction: discord.Interaction, efemero: bool = True):
+        if not self.worksheet:
+            await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=efemero)
+
+	try:
+	    hoje = datetime.now().date()
+	    orcamentos_dia = []
+	    status_rev = "04 Revisão"
+            todos_os_dados = self.worksheet.get_all_values()
+
+	    COLUNA_DATA_ENTREGA_IDX = 1
+            COLUNA_ID_ORCAMENTO_IDX = 3
+            COLUNA_CLIENTE_IDX = 2
+            COLUNA_STATUS_IDX = 7
+            
+            for linha in todos_os_dados[1:]: # Pula o cabeçalho
+                try:
+		    data_entrega_str = linha[COLUNA_DATA_ENTREGA_IDX]
+                    status_da_linha = linha[COLUNA_STATUS_IDX]
+                    
+                    if status_da_linha in status_finalizados or not data_entrega_str:
+                        continue
+                        
+                    data_entrega = datetime.strptime(data_entrega_str, '%d/%m/%Y').date()
+                    
+                    if data_entrega == hoje:
+                        id_orcamento = linha[COLUNA_ID_ORCAMENTO_IDX]
+                        nome_cliente = linha[COLUNA_CLIENTE_IDX]
+                        orcamentos_dia.append(f"`{id_orcamento}` - {nome_cliente}")
+                
+                except (ValueError, IndexError):
+                    continue
+            
+            if not orcamentos_dia:
+                embed = discord.Embed(
+                    title="✅ Nenhuma Revisão pra Hoje",
+                    description="Ótima notícia! Todos os orçamentos estão em dia.",
+                    color=discord.Color.green()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=efemero)
+                return
+                
+            embed = discord.Embed(
+                title="🚨 Revisões do Dia",
+                description="Os seguintes orçamentos estão em revisão hoje:",
+                color=discord.Color.red()
+            )
+            
+            lista_projetos_str = "\n".join(orcamentos_dia)
+            if len(lista_projetos_str) > 4000:
+                lista_projetos_str = lista_projetos_str[:4000] + "\n...(lista muito longa)"
+            
+            embed.description = lista_projetos_str
+            
+            await interaction.followup.send(embed=embed, ephemeral=efemero)
+        
+        except Exception as e:
+            await interaction.followup.send(f"Ocorreu um erro ao verificar os revisões do dia: {e}", ephemeral=efemero)
+
 # --- Função de Setup para Carregar o Cog ---
 async def setup(bot):
     await bot.add_cog(SpreadsheetCommands(bot))

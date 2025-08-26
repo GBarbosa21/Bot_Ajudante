@@ -4,14 +4,9 @@ from discord import app_commands
 import gspread
 import json
 import os
-from dotenv import load_dotenv
 from datetime import datetime
 from flask import Flask
 from threading import Thread
-
-# Carrega as variáveis do arquivo .env (para testes locais)
-load_dotenv()
-TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 
 # --- INÍCIO DA PARTE DO SERVIDOR WEB ---
 # Criamos um servidor web mínimo apenas para manter o Render feliz.

@@ -156,7 +156,8 @@ class SpreadsheetCommands(commands.Cog):
                     if status_da_linha in status_finalizados or not data_entrega_str:
                         continue
                         
-                    data_entrega = datetime.strptime(data_entrega_str, '%d/%m/%Y').date()
+                    data_completa_str = f"{data_entrega_str.strip()}/{hoje.year}"
+                    data_entrega = datetime.strptime(data_completa_str, '%d/%m/%Y').date()
                     
                     if data_entrega < hoje:
                         id_orcamento = linha[COLUNA_ID_ORCAMENTO_IDX]
@@ -287,7 +288,8 @@ class SpreadsheetCommands(commands.Cog):
                     if not data_str:
                         continue
                     
-                    data_da_linha = datetime.strptime(data_str, '%d/%m/%Y').date()
+                    data_completa_str = f"{data_str.strip()}/{hoje.year}"
+                    data_da_linha = datetime.strptime(data_completa_str, '%d/%m/%Y').date()
                     
                     if data_da_linha == hoje and status_da_linha == status_revisao_esperado:
                         id_orcamento = linha[COLUNA_ID_ORCAMENTO_IDX]

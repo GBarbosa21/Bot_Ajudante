@@ -259,68 +259,67 @@ class SpreadsheetCommands(commands.Cog):
             await interaction.followup.send(f"Ocorreu um erro ao listar os projetos: {e}", ephemeral=efemero)
 
 
-    @app_commands.command(name="revisao_dia", describe="Mostra todos Orçamentos do dia com Status: 04 Revisão")
-    @app_commands.describe(efemero="Escolha 'Falso' para mostrar para todos)
-    async def atrasados(self, interaction: discord.Interaction, efemero: bool = True):
+    @app_commands.command(name="revisao_dia", description="Mostra todos os Orçamentos do dia com Status: 04 Revisão")
+    @app_commands.describe(efemero="Escolha 'Falso' para mostrar a resposta para todos.")
+    async def revisao_dia(self, interaction: discord.Interaction, efemero: bool = True):
         if not self.worksheet:
             await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=True)
             return
+        
         await interaction.response.defer(ephemeral=efemero)
-
-	try:
-	    hoje = datetime.now().date()
-	    orcamentos_dia = []
-	    status_rev = "04 Revisão"
+        
+        try:
+            hoje = datetime.now().date()
+            orcamentos_do_dia = []
+            status_revisao = "04 Revisão"
             todos_os_dados = self.worksheet.get_all_values()
 
-	    COLUNA_DATA_ENTREGA_IDX = 1
+            COLUNA_DATA_IDX = 1  # Coluna B
             COLUNA_ID_ORCAMENTO_IDX = 3
             COLUNA_CLIENTE_IDX = 2
             COLUNA_STATUS_IDX = 7
             
-            for linha in todos_os_dados[1:]: # Pula o cabeçalho
+            for linha in todos_os_dados[1:]:
                 try:
-		    data_entrega_str = linha[COLUNA_DATA_ENTREGA_IDX]
+                    data_str = linha[COLUNA_DATA_IDX]
                     status_da_linha = linha[COLUNA_STATUS_IDX]
                     
-                    if status_da_linha in status_finalizados or not data_entrega_str:
+                    if not data_str:
                         continue
-                        
-                    data_entrega = datetime.strptime(data_entrega_str, '%d/%m/%Y').date()
                     
-                    if data_entrega == hoje:
+                    data_da_linha = datetime.strptime(data_str, '%d/%m/%Y').date()
+                    
+                    # Verifica se a data é hoje E se o status é '04 Revisão'
+                    if data_da_linha == hoje and status_da_linha == status_revisao:
                         id_orcamento = linha[COLUNA_ID_ORCAMENTO_IDX]
                         nome_cliente = linha[COLUNA_CLIENTE_IDX]
-                        orcamentos_dia.append(f"`{id_orcamento}` - {nome_cliente}")
+                        orcamentos_do_dia.append(f"`{id_orcamento}` - {nome_cliente}")
                 
                 except (ValueError, IndexError):
                     continue
             
-            if not orcamentos_dia:
+            if not orcamentos_do_dia:
                 embed = discord.Embed(
-                    title="✅ Nenhuma Revisão pra Hoje",
-                    description="Ótima notícia! Todos os orçamentos estão em dia.",
+                    title="✅ Nenhuma Revisão para Hoje",
+                    description="Não há orçamentos com data de hoje e status '04 Revisão'.",
                     color=discord.Color.green()
                 )
                 await interaction.followup.send(embed=embed, ephemeral=efemero)
                 return
-                
+            
             embed = discord.Embed(
-                title="🚨 Revisões do Dia",
+                title="🗓️ Revisões de Hoje",
                 description="Os seguintes orçamentos estão em revisão hoje:",
-                color=discord.Color.red()
+                color=discord.Color.blue()
             )
             
-            lista_projetos_str = "\n".join(orcamentos_dia)
-            if len(lista_projetos_str) > 4000:
-                lista_projetos_str = lista_projetos_str[:4000] + "\n...(lista muito longa)"
-            
+            lista_projetos_str = "\n".join(orcamentos_do_dia)
             embed.description = lista_projetos_str
             
             await interaction.followup.send(embed=embed, ephemeral=efemero)
         
         except Exception as e:
-            await interaction.followup.send(f"Ocorreu um erro ao verificar os revisões do dia: {e}", ephemeral=efemero)
+            await interaction.followup.send(f"Ocorreu um erro ao verificar as revisões do dia: {e}", ephemeral=efemero)
 
 # --- Função de Setup para Carregar o Cog ---
 async def setup(bot):

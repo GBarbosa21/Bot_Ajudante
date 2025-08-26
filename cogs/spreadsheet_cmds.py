@@ -5,24 +5,6 @@ import gspread
 import json
 import os
 from datetime import datetime
-from flask import Flask
-from threading import Thread
-
-# --- INÍCIO DA PARTE DO SERVIDOR WEB ---
-# Criamos um servidor web mínimo apenas para manter o Render feliz.
-app = Flask('')
-
-@app.route('/')
-def health_check():
-    """Esta rota responde aos 'pings' do Render e do UptimeRobot."""
-    return "Bot de comandos está online!", 200
-
-def run_flask():
-    """Roda o servidor Flask na porta que o Render espera."""
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
-# --- FIM DA PARTE DO SERVIDOR WEB ---
-
 
 # --- Função Auxiliar de Formatação ---
 def formatar_data_br(data_str: str) -> str:

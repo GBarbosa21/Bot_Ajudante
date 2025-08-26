@@ -271,7 +271,7 @@ class SpreadsheetCommands(commands.Cog):
         try:
             hoje = datetime.now().date()
             orcamentos_do_dia = []
-            status_revisao = "04 Revisão"
+            status_revisao = "04 Revisão "
             todos_os_dados = self.worksheet.get_all_values()
 
             COLUNA_DATA_IDX = 1  # Coluna B

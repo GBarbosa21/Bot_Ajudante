@@ -271,37 +271,57 @@ class SpreadsheetCommands(commands.Cog):
         try:
             hoje = datetime.now().date()
             orcamentos_do_dia = []
-            status_revisao = "04 Revisão "
+            status_revisao_esperado = "04 Revisão"
             todos_os_dados = self.worksheet.get_all_values()
+
+            print("\n--- INICIANDO DIAGNÓSTICO DE REVISÕES DO DIA ---")
+            print(f"Buscando por status '{status_revisao_esperado}' para a data de hoje: {hoje.strftime('%d/%m/%Y')}")
+            print("-------------------------------------------------")
 
             COLUNA_DATA_IDX = 1  # Coluna B
             COLUNA_ID_ORCAMENTO_IDX = 3
             COLUNA_CLIENTE_IDX = 2
             COLUNA_STATUS_IDX = 7
             
-            for linha in todos_os_dados[1:]:
+            for index, linha in enumerate(todos_os_dados[1:]): # Começa na segunda linha (índice 1)
+                linha_real = index + 2 # Número da linha na planilha
                 try:
                     data_str = linha[COLUNA_DATA_IDX]
-                    status_da_linha = linha[COLUNA_STATUS_IDX]
+                    status_da_linha = linha[COLUNA_STATUS_IDX].strip() # Limpa espaços extras do status
                     
                     if not data_str:
-                        continue
+                        continue # Pula se a célula de data estiver vazia
                     
+                    print(f"\nVerificando Linha {linha_real}:")
+                    print(f"  Lendo Data='{data_str}', Status='{status_da_linha}'")
+
                     data_da_linha = datetime.strptime(data_str, '%d/%m/%Y').date()
                     
-                    # Verifica se a data é hoje E se o status é '04 Revisão'
-                    if data_da_linha == hoje and status_da_linha == status_revisao:
+                    # Compara as condições separadamente
+                    data_corresponde = (data_da_linha == hoje)
+                    status_corresponde = (status_da_linha == status_revisao_esperado)
+
+                    print(f"  --> Comparando: Data é hoje? {data_corresponde}. Status confere? {status_corresponde}.")
+
+                    if data_corresponde and status_corresponde:
+                        print(f"  ==> CORRESPONDÊNCIA ENCONTRADA na linha {linha_real}!")
                         id_orcamento = linha[COLUNA_ID_ORCAMENTO_IDX]
                         nome_cliente = linha[COLUNA_CLIENTE_IDX]
                         orcamentos_do_dia.append(f"`{id_orcamento}` - {nome_cliente}")
                 
-                except (ValueError, IndexError):
+                except (ValueError):
+                    # Avisa sobre datas com formato errado
+                    print(f"  --> AVISO: A data '{data_str}' na linha {linha_real} não está no formato DD/MM/YYYY e foi ignorada.")
                     continue
+                except IndexError:
+                    continue # Ignora linhas mal formatadas
+            
+            print("--- DIAGNÓSTICO CONCLUÍDO ---")
             
             if not orcamentos_do_dia:
                 embed = discord.Embed(
                     title="✅ Nenhuma Revisão para Hoje",
-                    description="Não há orçamentos com data de hoje e status '04 Revisão'.",
+                    description="Não foram encontrados orçamentos com data de hoje e status '04 Revisão'. Verifique os logs no Render para detalhes.",
                     color=discord.Color.green()
                 )
                 await interaction.followup.send(embed=embed, ephemeral=efemero)

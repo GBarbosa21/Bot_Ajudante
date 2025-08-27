@@ -40,9 +40,8 @@ class SpreadsheetCommands(commands.Cog):
         else:
             print("Cog 'Spreadsheet': AVISO: Secret 'GOOGLE_CREDENTIALS_JSON' não encontrado.")
 
-    # --- Comandos (Corrigidos com a indentação correta) ---
-    
-    @app_commands.command(name="verificar", description="Verifica orçamentos com status pendentes.")
+    # --- Comandos---
+    @app_commands.command(name="verificar", description="Verifica orçamentos com status de trabalho pendentes.")
     @app_commands.describe(efemero="Escolha 'Falso' para mostrar a resposta para todos no canal.")
     async def verificar(self, interaction: discord.Interaction, efemero: bool = True):
         if not self.worksheet:
@@ -50,28 +49,33 @@ class SpreadsheetCommands(commands.Cog):
             return
         try:
             await interaction.response.defer(ephemeral=efemero)
-            status_para_procurar = ["16 Cart.Tradução", "17 Cart.Original", "Embalar", "05 Imprimir"]
+            status_para_procurar = [
+                "01 Escanear", "03 Traduzir", "04 Revisar", "05 Imprimir", 
+                "07 Assinar Digitalmente", "08 Assinar e Imprimir", "10 Numerar", 
+                "15 Cart.Tradução", "16 Cart. Original", "17 Conferência", 
+                "18 Tradução Externa", "19 Embalar"
+            ]
             todos_os_dados = self.worksheet.get_all_values()
             orcamentos_encontrados = {}
             for linha in todos_os_dados[1:]:
                 try:
-                    status_da_linha = linha[7]
-                    id_orcamento = linha[3]
-                    nome_cliente = linha[2]
+                    status_da_linha = linha[7].strip()
+                    if status_da_linha in status_para_procurar:
+                        id_orcamento = linha[3]
+                        nome_cliente = linha[2]
+                        if status_da_linha not in orcamentos_encontrados:
+                            orcamentos_encontrados[status_da_linha] = []
+                        if id_orcamento and nome_cliente:
+                            linha_formatada = f"{id_orcamento} - {nome_cliente}"
+                            orcamentos_encontrados[status_da_linha].append(linha_formatada)
                 except IndexError:
                     continue
-                if status_da_linha in status_para_procurar:
-                    if status_da_linha not in orcamentos_encontrados:
-                        orcamentos_encontrados[status_da_linha] = []
-                    if id_orcamento and nome_cliente:
-                        linha_formatada = f"{id_orcamento} - {nome_cliente}"
-                        orcamentos_encontrados[status_da_linha].append(linha_formatada)
             
             if not orcamentos_encontrados:
                 await interaction.followup.send("Nenhum orçamento encontrado com os status de verificação.", ephemeral=efemero)
                 return
                 
-            resposta_texto = "📋 **Orçamentos Pendentes Encontrados:**\n\n"
+            resposta_texto = "📋 **Orçamentos com Status Ativo:**\n\n"
             for status, orcamentos in orcamentos_encontrados.items():
                 if orcamentos:
                     resposta_texto += f"**{status}**\n"
@@ -138,20 +142,16 @@ class SpreadsheetCommands(commands.Cog):
         await interaction.response.defer(ephemeral=efemero)
         
         try:
-            status_finalizados = ["09 Pronto", "10 Entregue", "12 Cancelado"]
+            # --- LISTA DE STATUS FINALIZADOS ATUALIZADA ---
+            status_finalizados = ["09 Pronto", "11 Entregue", "12 Enviar e-mail", "20 Cancelado"]
             hoje = datetime.now().date()
             todos_os_dados = self.worksheet.get_all_values()
             projetos_atrasados = []
             
-            COLUNA_DATA_ENTREGA_IDX = 1
-            COLUNA_ID_ORCAMENTO_IDX = 3
-            COLUNA_CLIENTE_IDX = 2
-            COLUNA_STATUS_IDX = 7
-            
             for linha in todos_os_dados[1:]:
                 try:
-                    data_entrega_str = linha[COLUNA_DATA_ENTREGA_IDX]
-                    status_da_linha = linha[COLUNA_STATUS_IDX]
+                    data_entrega_str = linha[1] # Coluna B
+                    status_da_linha = linha[7].strip()
                     
                     if status_da_linha in status_finalizados or not data_entrega_str:
                         continue
@@ -160,56 +160,50 @@ class SpreadsheetCommands(commands.Cog):
                     data_entrega = datetime.strptime(data_completa_str, '%d/%m/%Y').date()
                     
                     if data_entrega < hoje:
-                        id_orcamento = linha[COLUNA_ID_ORCAMENTO_IDX]
-                        nome_cliente = linha[COLUNA_CLIENTE_IDX]
+                        id_orcamento = linha[3]
+                        nome_cliente = linha[2]
                         projetos_atrasados.append(f"`{id_orcamento}` - {nome_cliente} (Venceu em: {data_entrega_str})")
                 
                 except (ValueError, IndexError):
                     continue
             
             if not projetos_atrasados:
-                embed = discord.Embed(
-                    title="✅ Nenhum Projeto Atrasado",
-                    description="Ótima notícia! Todos os projetos estão em dia.",
-                    color=discord.Color.green()
-                )
+                embed = discord.Embed(title="✅ Nenhum Projeto Atrasado", description="Ótima notícia! Todos os projetos estão em dia.", color=discord.Color.green())
                 await interaction.followup.send(embed=embed, ephemeral=efemero)
                 return
                 
-            embed = discord.Embed(
-                title="🚨 Projetos Atrasados",
-                description="Os seguintes projetos estão com a data de entrega vencida:",
-                color=discord.Color.red()
-            )
+            embed = discord.Embed(title="🚨 Projetos Atrasados", description="Os seguintes projetos estão com a data de entrega vencida:", color=discord.Color.red())
             
             lista_projetos_str = "\n".join(projetos_atrasados)
-            if len(lista_projetos_str) > 4000:
-                lista_projetos_str = lista_projetos_str[:4000] + "\n...(lista muito longa)"
-            
             embed.description = lista_projetos_str
             
             await interaction.followup.send(embed=embed, ephemeral=efemero)
         
         except Exception as e:
             await interaction.followup.send(f"Ocorreu um erro ao verificar os projetos atrasados: {e}", ephemeral=efemero)
-
     
     @app_commands.command(name="listar_status", description="Lista todos os orçamentos com um status específico.")
     @app_commands.describe(status="Escolha o status que você deseja listar.")
     # Cria a lista de opções para o usuário escolher
     @app_commands.choices(status=[
-        app_commands.Choice(name="01 Scan", value="01 Scan"),
-        app_commands.Choice(name="03 Tradução", value="03 Tradução"),
-        app_commands.Choice(name="04 Revisão", value="04 Revisão"),
+        app_commands.Choice(name="01 Escanear", value="01 Escanear"),
+        app_commands.Choice(name="03 Traduzir", value="03 Traduzir"),
+        app_commands.Choice(name="04 Revisar", value="04 Revisar"),
         app_commands.Choice(name="05 Imprimir", value="05 Imprimir"),
-        app_commands.Choice(name="06 Numerar", value="06 Numerar"),
-        app_commands.Choice(name="07 Assinar Digital", value="07 Assinar Digital"),
+        app_commands.Choice(name="07 Assinar Digitalmente", value="07 Assinar Digitalmente"),
+        app_commands.Choice(name="08 Assinar e Imprimir", value="08 Assinar e Imprimir"),
         app_commands.Choice(name="09 Pronto", value="09 Pronto"),
-        app_commands.Choice(name="10 Entregue", value="10 Entregue"),
-        app_commands.Choice(name="11 Enviar e-mail", value="11 Enviar e-mail"),
-        app_commands.Choice(name="15 Aguardando doc", value="15 Aguardando doc"),
-        app_commands.Choice(name="16 Cart.Tradução", value="16 Cart.Tradução"),
-        app_commands.Choice(name="17 Cart. Original", value="17 Cart. Original")
+        app_commands.Choice(name="10 Numerar", value="10 Numerar"),
+        app_commands.Choice(name="11 Entregue", value="11 Entregue"),
+        app_commands.Choice(name="12 Enviar e-mail", value="12 Enviar e-mail"),
+        app_commands.Choice(name="13 Stand by", value="13 Stand by"),
+        app_commands.Choice(name="14 Aguardando Orig.", value="14 Aguardando Orig."),
+        app_commands.Choice(name="15 Cart.Tradução", value="15 Cart.Tradução"),
+        app_commands.Choice(name="16 Cart. Original", value="16 Cart. Original"),
+        app_commands.Choice(name="17 Conferência", value="17 Conferência"),
+        app_commands.Choice(name="18 Tradução Externa", value="18 Tradução Externa"),
+        app_commands.Choice(name="19 Embalar", value="19 Embalar"),
+        app_commands.Choice(name="20 Cancelado", value="20 Cancelado")
     ])
     async def listar_status(self, interaction: discord.Interaction, status: str, efemero: bool = True):
         if not self.worksheet:

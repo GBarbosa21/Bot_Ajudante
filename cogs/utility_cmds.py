@@ -128,6 +128,9 @@ class UtilityCommands(commands.Cog):
     async def pong(self, ctx):
         await ctx.send('ping')
 
+    @commands.command()
+    async def enlouqueci(self, ctx):
+        await ctx.send('FORAM VOCÊS!')
 
 # --- Função de Setup para Carregar o Cog ---
 async def setup(bot):

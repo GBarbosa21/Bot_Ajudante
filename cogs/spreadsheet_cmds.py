@@ -58,7 +58,7 @@ class SpreadsheetCommands(commands.Cog):
             status_para_procurar = [
                 "01 Escanear", "03 Traduzir", "04 Revisar", "05 Imprimir", 
                 "07 Assinar Digitalmente", "08 Assinar e Imprimir", "10 Numerar", 
-                "15 Cart.Tradução", "16 Cart. Original", "17 Conferência", 
+                "15 Cart. Tradução", "16 Cart. Original", "17 Conferência", 
                 "18 Tradução Externa", "19 Embalar"
             ]
             todos_os_dados = self.worksheet.get_all_values()

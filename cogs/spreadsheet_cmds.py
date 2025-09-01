@@ -204,7 +204,7 @@ class SpreadsheetCommands(commands.Cog):
         app_commands.Choice(name="12 Enviar e-mail", value="12 Enviar e-mail"),
         app_commands.Choice(name="13 Stand by", value="13 Stand by"),
         app_commands.Choice(name="14 Aguardando Orig.", value="14 Aguardando Orig."),
-        app_commands.Choice(name="15 Cart.Tradução", value="15 Cart.Tradução"),
+        app_commands.Choice(name="15 Cart.Tradução", value="15 Cart. Tradução"),
         app_commands.Choice(name="16 Cart. Original", value="16 Cart. Original"),
         app_commands.Choice(name="17 Conferência", value="17 Conferência"),
         app_commands.Choice(name="18 Tradução Externa", value="18 Tradução Externa"),

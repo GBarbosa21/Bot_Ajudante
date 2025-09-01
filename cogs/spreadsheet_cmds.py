@@ -6,16 +6,22 @@ import json
 import os
 from datetime import datetime
 
-# --- Função Auxiliar de Formatação ---
+# --- Função Auxiliar de Formatação (Atualizada) ---
 def formatar_data_br(data_str: str) -> str:
+    """Tenta formatar uma string de data para o padrão dd/mm/YYYY."""
     if not data_str: return "N/A"
     try:
-        # Tenta adivinhar o formato da data vindo da planilha
-        dt_obj = datetime.strptime(data_str, '%d/%m/%Y')
-        return dt_obj.strftime('%d/%m/%Y')
-    except ValueError:
-        return data_str # Retorna o texto original se não conseguir formatar
-    except Exception:
+        # Adiciona o ano atual se a string for apenas dd/mm
+        if len(data_str.strip()) <= 5:
+            ano_atual = datetime.now().year
+            data_completa_str = f"{data_str.strip()}/{ano_atual}"
+            dt_obj = datetime.strptime(data_completa_str, '%d/%m/%Y')
+            return dt_obj.strftime('%d/%m/%Y')
+        else:
+            # Tenta formatar a data completa se ela já tiver o ano
+            dt_obj = datetime.strptime(data_str, '%d/%m/%Y')
+            return dt_obj.strftime('%d/%m/%Y')
+    except:
         return data_str
 
 # --- Classe do Cog ---
@@ -315,6 +321,74 @@ class SpreadsheetCommands(commands.Cog):
         
         except Exception as e:
             await interaction.followup.send(f"Ocorreu um erro ao verificar as revisões do dia: {e}", ephemeral=efemero)
+
+    @app_commands.command(name="traducoes_ate", description="Lista projetos em tradução com entrega até uma data específica.")
+    @app_commands.describe(data="A data limite no formato DD/MM (ex: 28/08)",efemero="Escolha 'Falso' para mostrar a resposta para todos.")
+    async def traducoes_ate(self, interaction: discord.Interaction, data: str, efemero: bool = True):
+        if not self.worksheet:
+            await interaction.response.send_message("Desculpe, a conexão com a planilha não foi estabelecida.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=efemero)
+
+        try:
+            # 1. Valida e formata a data de entrada do usuário
+            ano_atual = datetime.now().year
+            data_limite_str = f"{data.strip()}/{ano_atual}"
+            try:
+                data_limite = datetime.strptime(data_limite_str, '%d/%m/%Y').date()
+            except ValueError:
+                await interaction.followup.send(f"Formato de data inválido: '{data}'. Por favor, use `DD/MM`.", ephemeral=True)
+                return
+
+            projetos_encontrados = []
+            status_traducao = "03 Traduzir"
+            todos_os_dados = self.worksheet.get_all_values()
+
+            for linha in todos_os_dados[1:]:
+                try:
+                    data_entrega_str = linha[1] # Coluna B
+                    status_da_linha = linha[7].strip() # Coluna H
+                    
+                    if not data_entrega_str or status_da_linha != status_traducao:
+                        continue
+                    
+                    # Formata a data da planilha para comparação
+                    data_entrega_completa_str = f"{data_entrega_str.strip()}/{ano_atual}"
+                    data_entrega = datetime.strptime(data_entrega_completa_str, '%d/%m/%Y').date()
+                    
+                    # A LÓGICA PRINCIPAL: verifica se a entrega é ANTES OU IGUAL à data limite
+                    if data_entrega <= data_limite:
+                        id_orcamento = linha[3]
+                        nome_cliente = linha[2]
+                        projetos_encontrados.append(f"`{id_orcamento}` - {nome_cliente} (Entrega: {data_entrega_str})")
+                
+                except (ValueError, IndexError):
+                    continue
+            
+            if not projetos_encontrados:
+                embed = discord.Embed(
+                    title=f"✅ Nenhuma Tradução Encontrada",
+                    description=f"Não há projetos com status '{status_traducao}' com entrega até **{data}**.",
+                    color=discord.Color.green()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=efemero)
+                return
+            
+            embed = discord.Embed(
+                title=f"📝 Traduções com Entrega até {data}",
+                description=f"Os seguintes orçamentos com status '{status_traducao}' têm entrega até a data informada:",
+                color=discord.Color.blue()
+            )
+            
+            lista_projetos_str = "\n".join(projetos_encontrados)
+            embed.description = lista_projetos_str
+            
+            await interaction.followup.send(embed=embed, ephemeral=efemero)
+
+        except Exception as e:
+            await interaction.followup.send(f"Ocorreu um erro ao buscar as traduções: {e}", ephemeral=efemero)
+
 
 # --- Função de Setup para Carregar o Cog ---
 async def setup(bot):

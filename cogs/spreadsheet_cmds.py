@@ -58,7 +58,7 @@ class SpreadsheetCommands(commands.Cog):
             status_para_procurar = [
                 "01 Escanear", "03 Traduzir", "04 Revisar", "05 Imprimir", 
                 "07 Assinar Digitalmente", "08 Assinar e Imprimir", "10 Numerar", 
-                "15 Cart. Tradução", "16 Cart. Original", "17 Conferência", 
+                "15 Cart.Tradução ", "16 Cart. Original", "17 Conferência", 
                 "18 Tradução Externa", "19 Embalar"
             ]
             todos_os_dados = self.worksheet.get_all_values()
@@ -204,7 +204,7 @@ class SpreadsheetCommands(commands.Cog):
         app_commands.Choice(name="12 Enviar e-mail", value="12 Enviar e-mail"),
         app_commands.Choice(name="13 Stand by", value="13 Stand by"),
         app_commands.Choice(name="14 Aguardando Orig.", value="14 Aguardando Orig."),
-        app_commands.Choice(name="15 Cart.Tradução", value="15 Cart. Tradução"),
+        app_commands.Choice(name="15 Cart.Tradução", value="15 Cart.Tradução"),
         app_commands.Choice(name="16 Cart. Original", value="16 Cart. Original"),
         app_commands.Choice(name="17 Conferência", value="17 Conferência"),
         app_commands.Choice(name="18 Tradução Externa", value="18 Tradução Externa"),

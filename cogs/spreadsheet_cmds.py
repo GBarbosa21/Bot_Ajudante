@@ -168,7 +168,7 @@ class SpreadsheetCommands(commands.Cog):
                     if data_entrega < hoje:
                         id_orcamento = linha[3]
                         nome_cliente = linha[2]
-                        status = linha[8]
+                        status = linha[7]
                         projetos_atrasados.append(f"`{id_orcamento}` - {nome_cliente} Status : {status} (Venceu em: {data_entrega_str})")
                 
                 except (ValueError, IndexError):

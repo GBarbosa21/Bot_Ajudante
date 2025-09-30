@@ -39,7 +39,7 @@ class SpreadsheetCommands(commands.Cog):
                 google_credentials_dict = json.loads(google_credentials_str)
                 gc = gspread.service_account_from_dict(google_credentials_dict)
                 spreadsheet = gc.open("@Status clientes 2025")
-                self.worksheet = spreadsheet.worksheet("SET 25")
+                self.worksheet = spreadsheet.worksheet("OUT 25")
                 print(f"Cog 'Spreadsheet': Conectado à planilha '{spreadsheet.title}'.")
             except Exception as e:
                 print(f"Cog 'Spreadsheet': ERRO CRÍTICO ao conectar à planilha: {e}")

@@ -3,11 +3,26 @@ from discord.ext import commands
 from discord import app_commands
 import asyncio
 import re
+import random
 
 # --- Classe do Cog ---
 class UtilityCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+        # Lista de piadas para o comando /piada
+        self.lista_de_piadas = [
+            "O que o pato falou para a pata? Vem Quá!",
+            "Por que a velhinha não usa relógio? Porque ela é uma sem hora.",
+            "Qual é o cúmulo da sorte? Ser atropelado por uma ambulância.",
+            "O que um cromossomo disse para o outro? Cromossomos felizes!",
+            "Sabe como o Batman faz para entrar na bat-caverna? Ele bat-palma.",
+            "Por que o jacaré tirou o filho da escola? Porque ele réptil de ano.",
+            "Qual o rei dos queijos? O Reiqueijão.",
+            "O que a impressora disse para a outra? Essa folha é sua ou é impressão minha?",
+            "O que o tomate foi fazer no banco? Foi tirar o extrato.",
+            "Por que a planta não responde? Porque ela é clorofila da puta."
+        ]
 
     # --- Funções Auxiliares ---
     def parse_time(self, time_str: str) -> int | None:
@@ -164,7 +179,16 @@ class UtilityCommands(commands.Cog):
         # Envia a resposta no canal
         await interaction.response.send_message(embed=embed)
 
-
+    @app_-commands.command(name="piada", description="Eu te conto uma piada aleatória.")
+    async def piada(self, interaction: discord.Interaction):
+        """Escolhe e envia uma piada aleatória da lista."""
+        
+        # Escolhe uma piada da lista de forma aleatória
+        piada_escolhida = random.choice(self.lista_de_piadas)
+        
+        # Envia a piada no canal
+        await interaction.response.send_message(f"😂 ... {piada_escolhida}")
+    
     @commands.command()
     async def ping(self, ctx):
         await ctx.send('Pong!')

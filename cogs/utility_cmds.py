@@ -119,6 +119,51 @@ class UtilityCommands(commands.Cog):
         
         await interaction.followup.send(embed=embed, ephemeral=efemero)
 
+    @app_commands.command(name="avaliacao", description="Envia o formulário de avaliação de atendimento.")
+    async def avaliacao(self, interaction: discord.Interaction):
+        # O texto do formulário
+        texto_formulario = """
+            **Avaliação Rápida de Atendimento de Suporte de TI**
+            
+            A sua opinião é essencial para melhorarmos nossos serviços. Por favor, dedique um minuto para avaliar o suporte que você recebeu.
+            
+            **Nº do Chamado/Ticket:** _______________
+            **Data do Atendimento:** ______/______/______
+            
+            **Instruções:** Para cada pergunta abaixo, por favor, selecione uma nota de 1 a 5.
+            *1 = Muito Insatisfeito | 2 = Insatisfeito | 3 = Neutro | 4 = Satisfeito | 5 = Muito Satisfeito*
+            ---
+            **1. Cordialidade e profissionalismo do técnico:**
+            ( ) 1   ( ) 2   ( ) 3   ( ) 4   ( ) 5
+            
+            **2. Clareza na comunicação e nas explicações:**
+            ( ) 1   ( ) 2   ( ) 3   ( ) 4   ( ) 5
+            
+            **3. Tempo para a resolução do seu problema:**
+            ( ) 1   ( ) 2   ( ) 3   ( ) 4   ( ) 5
+            
+            **4. A solução apresentada foi eficaz?**
+            ( ) 1   ( ) 2   ( ) 3   ( ) 4   ( ) 5
+            
+            **5. Qual seu nível de satisfação GERAL com o atendimento?**
+            ( ) 1   ( ) 2   ( ) 3   ( ) 4   ( ) 5
+            ---
+            **Comentários ou sugestões (opcional):**
+            *O que mais gostou no atendimento? O que podemos melhorar?*
+            \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
+            
+            Obrigado pela sua colaboração!
+            """
+        
+        # Cria um Embed para a mensagem ficar mais organizada
+        embed = discord.Embed(
+            description=texto_formulario,
+            color=discord.Color.from_rgb(0, 153, 255) # Um tom de azul
+        )
+        
+        # Envia a resposta no canal
+        await interaction.response.send_message(embed=embed)
+
 
     @commands.command()
     async def ping(self, ctx):
